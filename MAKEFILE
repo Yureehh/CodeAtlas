@@ -1,0 +1,22 @@
+.PHONY: venv sync add lock lint test clean
+
+venv:
+	uv venv
+
+sync:
+	uv sync --system
+
+add:
+	uv add $(pkg)
+
+lock:
+	uv lock
+
+lint:
+	ruff check codebase_explainer
+
+test:
+	pytest -q
+
+clean:
+	rm -rf .venv uv.lock dist build *.egg-info

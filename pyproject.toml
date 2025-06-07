@@ -1,0 +1,160 @@
+[project]
+name = "codebase-explainer"
+version = "0.1.1"
+description = "Visual Python-codebase inspector with DeepWiki-Open + AST"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [{name = "Juri", email = "j.fabbri@reply.it"}]
+dependencies = [
+    "commitizen>=4.8.2",
+    "gitpython>=3.1.44",
+    "graphviz>=0.20.3",
+    "networkx>=3.5",
+    "pre-commit>=4.2.0",
+    "rich>=14.0.0",
+    "ruff>=0.11.13",
+    "typer>=0.16.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+codebase-explainer = "codebase_explainer.cli:app"
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 120
+indent-width = 4
+
+# Assume Python 3.9
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    #### modules
+    "ANN", # flake8-annotations
+    "COM", # flake8-commas
+    "C90", # mccabe complexity
+    "DJ",  # django
+    "EXE", # flake8-executable
+    "T10", # debugger
+    "TID", # flake8-tidy-imports
+    "DTZ",  # flake8-docstrings
+
+    #### specific rules
+    "D100",   # ignore missing docs
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D200",
+    "D203",
+    "D205",
+    "D211",
+    "D212",
+    "D400",
+    "D401",
+    "D415",
+    "E402",   # false positives for local imports
+    "E501",   # line too long
+    "TRY003", # external messages in exceptions are too verbose
+    "TD002",
+    "TD003",
+    "FIX002", # too verbose descriptions of todos
+    "PLR0913", # too many arguments
+    "S101",
+    "N806",
+    "FBT001",
+    "FBT002",
+    "N999",
+    "G004",
+    "TRY300",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|_[a-zA-Z0-9]+)$"
+
+[tool.ruff.lint.per-file-ignores]
+"*/grid_central_data.py" = ["A002", "N803"]
+
+[tool.lint.isort]
+force-single-line = true
+order-by-type = false
+required-imports = ["from __future__ import annotations"]
+known-first-party = ["dynaconf"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true

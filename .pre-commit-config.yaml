@@ -1,0 +1,42 @@
+repos:
+  # Upgrade Python syntax
+  - repo: https://github.com/asottile/pyupgrade           # v3.20.0 is current  :contentReference[oaicite:4]{index=4}
+    rev: v3.20.0
+    hooks:
+      - id: pyupgrade
+        args: ["--py311-plus"]
+
+  # Ruff (lint -> format, per docs)  :contentReference[oaicite:5]{index=5}
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-docstring-first
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-mock-methods
+      - id: python-use-type-annotations
+      - id: python-check-blanket-noqa
+      - id: text-unicode-replacement-char
