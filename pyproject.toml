@@ -7,22 +7,15 @@ requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [{name = "Juri", email = "j.fabbri@reply.it"}]
 dependencies = [
-    "commitizen>=4.8.2",
-    "gitpython>=3.1.44",
-    "graphviz>=0.20.3",
-    "networkx>=3.5",
-    "pre-commit>=4.2.0",
-    "rich>=14.0.0",
-    "ruff>=0.11.13",
-    "typer>=0.16.0",
+  "streamlit>=1.45", # UI
+  "requests>=2.31", # API calls
+  "python-dotenv>=1.0", # read local .env (optional)
+  "ruff>=0.3", # lint
+  "pre-commit>=4",
+  "commitizen>=4",
+  "httpx>=0.28.1",
+  "watchdog>=6.0.0",
 ]
-
-[build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
-
-[project.scripts]
-codebase-explainer = "codebase_explainer.cli:app"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.

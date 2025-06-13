@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codebase_explainer.parse import _fallback_ast
+from src.parse import _fallback_ast
 
 
 def test_basic_ast():
