@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # src/deepwiki_wrapper.py
 
+import logging
+import sys
 from pathlib import Path
-import sys, logging
+
 from deepwiki_client import DeepWikiClient
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

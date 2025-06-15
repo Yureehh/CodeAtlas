@@ -1,7 +1,8 @@
 """
 Ultra-thin client that correctly mimics the DeepWiki-Open frontend.
 This version correctly assembles the wiki by capturing and concatenating
-the raw markdown tokens streamed from the server via the WebSocket.
+the raw markdown tokens streamed from the server via the WebSocket, then
+saves the result to the cache before downloading.
 """
 
 from __future__ import annotations
@@ -10,11 +11,12 @@ import asyncio
 import json
 import logging
 import re
+import sys
 import uuid
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Final, Any
+from typing import Any, Final
 
 import requests
 import websockets
@@ -43,12 +45,12 @@ class DeepWikiClient:
         """Convenience wrapper to run the async export method."""
         try:
             return asyncio.run(asyncio.wait_for(self.export_full_wiki_async(*args, **kwargs), timeout=20 * 60))
-        except (ConnectionRefusedError, ConnectionError) as e:
-            log.error("Could not connect to the backend at %s. Is the Docker container running?", self.base)
-            exit(1)
+        except (ConnectionRefusedError, ConnectionError):
+            log.exception("Could not connect to the backend at %s. Is the Docker container running?", self.base)
+            sys.exit(1)
         except TimeoutError:
-            log.error("The entire process timed out after 20 minutes.")
-            exit(1)
+            log.exception("The entire process timed out after 20 minutes.")
+            sys.exit(1)
 
     async def export_full_wiki_async(
         self,
@@ -64,25 +66,20 @@ class DeepWikiClient:
         out.mkdir(parents=True, exist_ok=True)
 
         file_paths = self._get_repo_files(repo_url, github_token)
-
-        # Build the initial data structure that we will populate.
         wiki_payload = self._build_payload_scaffold(repo_url, language, provider, model, file_paths)
-
-        # Run the WebSocket job and capture the streamed markdown content.
         generated_content = await self._run_and_capture_stream(wiki_payload["websocket_trigger_payload"])
 
         if generated_content:
-            # Inject the captured content into our data structure.
+            log.info("Populating final wiki structure with generated content.")
             main_page_id = wiki_payload["wiki_structure"]["pages"][0]["id"]
+            # Inject the captured content into both the pages list and the generated_pages dict
             wiki_payload["wiki_structure"]["pages"][0]["content"] = generated_content
             wiki_payload["generated_pages"][main_page_id] = wiki_payload["wiki_structure"]["pages"][0]
         else:
-            log.warning("The server did not stream back any content.")
+            msg = "Server finished but the client did not capture any content from the stream."
+            raise RuntimeError(msg)
 
-        # Save the fully populated data structure to the server's cache.
         self._save_wiki_to_cache(wiki_payload)
-
-        # Download the final file.
         self._download_and_write(repo_url, fmt, out)
         return out
 
@@ -93,7 +90,10 @@ class DeepWikiClient:
         log.info("Building request payload...")
         prompt = (
             f"Please generate a comprehensive wiki for the codebase with the following file structure:\n\n"
-            + "\n".join(file_paths)
+            f"{'\\n'.join(file_paths)}\n\n"
+            f"--- \n"
+            f"**In addition to the text documentation, please generate a high-level component interaction diagram using Mermaid.js syntax.** "
+            f"The diagram should show how the main HTML, CSS, and JavaScript files (like game.js, home.js, and chessBoard.js) relate to each other and their primary roles."
         )
 
         ws_payload = {
@@ -132,7 +132,7 @@ class DeepWikiClient:
 
     async def _run_and_capture_stream(self, ws_payload: dict[str, Any]) -> str:
         """Triggers the job and concatenates the streamed raw tokens from the server."""
-        log.info("Connecting to WebSocket at %s to trigger generation...", self.ws_url)
+        log.info("Connecting to WebSocket at %s...", self.ws_url)
         all_tokens = []
         try:
             async with websockets.connect(
@@ -151,7 +151,8 @@ class DeepWikiClient:
             log.info("Assembled content of %d characters.", len(full_content))
             return full_content
         except websockets.exceptions.ConnectionClosedError as e:
-            raise RuntimeError(f"The WebSocket connection was terminated unexpectedly: {e}")
+            msg = f"The WebSocket connection was terminated unexpectedly: {e}"
+            raise RuntimeError(msg)
         return "".join(all_tokens)
 
     def _save_wiki_to_cache(self, wiki_data: dict[str, Any]):
@@ -170,9 +171,13 @@ class DeepWikiClient:
         cached_data = self._get_cached_wiki(repo_info, LANGUAGE)
 
         if not cached_data or not cached_data.get("wiki_structure") or not cached_data["wiki_structure"].get("pages"):
-            raise FileNotFoundError("Failed to retrieve a valid, populated wiki from the server cache.")
+            msg = "Failed to retrieve a valid, populated wiki from the server cache."
+            raise FileNotFoundError(msg)
 
         pages_to_export = cached_data["wiki_structure"]["pages"]
+
+        if not any(page.get("content") for page in pages_to_export):
+            log.warning("The wiki from the cache has no content.")
 
         payload = {"repo_url": repo_url, "format": fmt, "pages": pages_to_export}
         r = requests.post(f"{self.base}/export/wiki", json=payload, timeout=max(REQ_TO, 600))
@@ -220,7 +225,8 @@ class DeepWikiClient:
     def _parse_repo_info_from_url(self, url: str) -> dict[str, str]:
         match = re.match(r"https?://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)", url)
         if not match:
-            raise ValueError(f"Invalid GitHub URL: {url}")
+            msg = f"Invalid GitHub URL: {url}"
+            raise ValueError(msg)
         return {"owner": match.group("owner"), "repo": match.group("repo"), "type": "github"}
 
 
