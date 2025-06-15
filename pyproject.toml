@@ -15,6 +15,7 @@ dependencies = [
   "commitizen>=4",
   "httpx>=0.28.1",
   "watchdog>=6.0.0",
+  "websockets>=15.0.1",
 ]
 
 [tool.ruff]
