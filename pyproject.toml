@@ -1,6 +1,6 @@
 [project]
 name = "codebase-explainer"
-version = "0.1.1"
+version = "0.1.2"
 description = "RAG-powered visual Python-codebase inspector using DeepWiki-Open, Streamlit and AST-based graph generation."
 readme = "README.md"
 requires-python = ">=3.12"
