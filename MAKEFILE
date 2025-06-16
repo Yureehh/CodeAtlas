@@ -1,22 +1,39 @@
-.PHONY: venv sync add lock lint test clean
+# Makefile for codebase-explainer / DeepWiki wrapper
 
-venv:
-	uv venv
+PYTHON := python
+ENTRYPOINT := src/deepwiki_wrapper.py
 
-sync:
-	uv sync --system
+# Default values (can be overridden via CLI)
+DEFAULT_REPO := https://github.com/psf/requests
+DEFAULT_FORMAT := markdown
+DEFAULT_LANG := en
+DEFAULT_PROVIDER := openai
 
-add:
-	uv add $(pkg)
+.PHONY: help run lint fmt test clean
 
-lock:
-	uv lock
+help:
+	@echo "Usage:"
+	@echo "  make run [REPO=<url>] [FORMAT=zip|markdown|html] [LANG=en] [PROVIDER=openai|...]"
+	@echo ""
+	@echo "Commands:"
+	@echo "  run     Run DeepWiki client on a specified repo"
+	@echo "  lint    Run ruff linting checks"
+	@echo "  fmt     Auto-format code with ruff"
+	@echo "  test    Run test suite"
+	@echo "  clean   Remove build artifacts"
+
+run:
+	$(PYTHON) $(ENTRYPOINT) $(REPO) $(FORMAT) $(LANG) $(PROVIDER)
 
 lint:
-	ruff check codebase_explainer
+	ruff check .
+
+fmt:
+	ruff check --fix --unsafe-fixes
+	ruff format .
 
 test:
-	pytest -q
+	pytest --cov=src --cov-report=term-missing
 
 clean:
-	rm -rf .venv uv.lock dist build *.egg-info
+	rm -rf .pytest_cache __pycache__ .ruff_cache coverage.xml dist build

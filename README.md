@@ -1,57 +1,136 @@
-# Codebase Explainer (MVP) 🕵️‍♀️🖼️
+# 📘 codebase-explainer
 
-CLI that **clones ↔︎ parses ↔︎ graphs** any *Python* project and spits out
-Mermaid markdown or SVG architecture diagrams in seconds.
+**Visual Python codebase explainer & AI-powered documentation toolkit – powered by [DeepWiki-Open](https://github.com/AsyncFuncAI/deepwiki-open)**
 
-## 0. Prerequisites
-* Python ≥ 3.9
-* [Graphviz](https://graphviz.org/) CLI (`dot`) in `$PATH` for SVG output.
-* [uv package-manager](https://astral.sh/uv) – 10× faster than pip.
-  Install once:
-  ```bash
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+---
 
-1. Bootstrap
-bash
-Copy
-Edit
-git clone https://github.com/your-org/codebase-explainer.git
-cd codebase-explainer
-make venv     # or: uv venv
-make sync     # installs deps from pyproject.toml or uv.lock
-2. Usage
-bash
-Copy
-Edit
-codebase-explainer --repo https://github.com/pallets/flask \
-                   --output out/flask \
-                   --format mermaid
-Open out/flask/module_graph.md in VS Code/GitHub to see rendered diagrams.
+## 🔥 Features
 
-3. uv workflow cheat-sheet
-Purpose	Command
-Add a dep	make add pkg=ruff
-Lock exact versions	make lock
-Re-install exactly	make sync
+- ✅ **Instant Documentation** — Turn any GitHub, GitLab, or BitBucket repository into a Markdown wiki in seconds
+- 🔐 **Private Repo Support** — Use personal access tokens to unlock private repositories
+- 🧠 **Smart Code Understanding** — Automatically analyzes AST trees, function calls, dependencies, and relationships
+- 🪄 **Beautiful Diagrams** — Auto-generates [Mermaid.js](https://mermaid-js.github.io/) diagrams for architecture and data flow
+- 🗺️ **Easy Navigation** — Streamlit-based GUI to browse and explore repositories
+- 🤖 **Ask Your Code** — RAG-powered chatbot that understands and explains your code
+- 🧪 **DeepResearch Mode** — Multi-turn investigation of concepts using full-repo context
+- 🔄 **Multi-Provider Support** — Use OpenAI, Google Gemini, OpenRouter, or local Ollama models
+- 🎛️ **Maximum Customizability** — Modular, stream-based architecture that supports advanced tuning and extension
 
-uv.lock should be committed for deterministic builds
-docs.astral.sh
-docs.astral.sh
-.
+---
 
-4. Road-map
-Function-level call-graph.
+## 🏁 Quickstart
 
-RAG-powered natural-language explanations (GPT-4 / Claude).
+```bash
+# Install (Python >= 3.12 required)
+uv pip install -e .
+```
 
-Automatic code documentation generation from docstrings.
+Then either:
 
-Documentation generation in markdown or HTML like Confluence.
+```bash
+# Launch the Streamlit UI (GUI)
+streamlit run app.py
+```
 
-GitHub Action to auto-attach diagrams to PRs.
+or
 
+```bash
+# Use the CLI tool directly
+python src/deepwiki_wrapper.py <repo-url> [zip|markdown|html] [language] [provider]
+```
 
-### `codebase_explainer/__init__.py`
-```python
-"""Codebase-Explainer — static code cartography for Python projects."""
-__version__ = "0.1.1"
+### Example
+
+```bash
+python src/deepwiki_wrapper.py https://github.com/psf/requests markdown en openai
+```
+
+---
+
+## 🛠️ Architecture Overview
+
+```
+📦 codebase-explainer
+├── app.py                  # 🔵 Streamlit UI entrypoint
+├── src/
+│   ├── deepwiki_client.py  # 🔗 Ultra-thin WebSocket + REST client for DeepWiki backend
+│   └── deepwiki_wrapper.py # ⚙️ CLI runner – mimics frontend call chain
+├── pyproject.toml          # 📋 Unified config (tooling, dependencies, linting, build)
+├── Makefile                # 🧰 Local automation: run, lint, test
+└── .pre-commit-config.yaml # ✅ Hooks for formatting & commit hygiene
+```
+
+---
+
+## 📦 Installation Notes
+
+- Requires Python `>= 3.12`
+- Dependency management via [`uv`](https://github.com/astral-sh/uv)
+- All dependencies declared in `pyproject.toml` – no `requirements.txt`
+
+To install:
+```bash
+uv pip install -e .
+```
+
+---
+
+## ⚙️ CLI: `deepwiki_wrapper.py`
+
+Generate documentation for any repo:
+
+```bash
+python src/deepwiki_wrapper.py <git-url> [zip|markdown|html] [language] [provider]
+```
+
+Example:
+
+```bash
+python src/deepwiki_wrapper.py https://github.com/psf/requests markdown en openai
+```
+
+---
+
+## 🧪 Development
+
+```bash
+# Install project & dev tools
+uv pip install -e .
+
+# Run checks
+make lint     # static analysis via Ruff
+make fmt      # auto-fix style issues
+make test     # pytest + coverage
+make run REPO=https://github.com/psf/requests  # CLI run
+```
+
+---
+
+## 💡 Workflow & CI
+
+- ✅ Pre-commit hooks via [`pre-commit`](https://pre-commit.com/)
+- ✅ Linting & formatting via [`ruff`](https://docs.astral.sh/ruff/)
+- ✅ Conventional commits via [`commitizen`](https://commitizen-tools.github.io/commitizen/)
+- ✅ GitHub Actions for testing, linting, formatting, MkDocs build/deploy
+
+---
+
+## 📜 License
+
+MIT License © 2025 Juri Fabbri
+
+---
+
+## 📞 Contact
+
+For questions, issues, or contributions, please open an issue on the [GitHub repository] or contact me directly at [fabbri.juri@gmail.com]
+
+---
+
+## Next Steps
+- MkDocs site templating
+- Streamlit Cloud / HuggingFace deployment
+- Expanding to more models and providers
+- Enhancing DeepResearch capabilities
+- Improving code understanding and visualization
+- Adding more diagram types (e.g., sequence diagrams)

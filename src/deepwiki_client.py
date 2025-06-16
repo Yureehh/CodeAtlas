@@ -152,7 +152,7 @@ class DeepWikiClient:
             return full_content
         except websockets.exceptions.ConnectionClosedError as e:
             msg = f"The WebSocket connection was terminated unexpectedly: {e}"
-            raise RuntimeError(msg)
+            raise RuntimeError(msg) from e
         return "".join(all_tokens)
 
     def _save_wiki_to_cache(self, wiki_data: dict[str, Any]):
