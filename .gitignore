@@ -112,3 +112,7 @@ oe_data.csv
 
 # Gifs
 data/heatmaps/*
+
+# Generated wikis
+data/**
+wiki.md
