@@ -1,8 +1,12 @@
 import logging
+import os
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
 from streamlit.components.v1 import html
+
+load_dotenv(override=True)
 
 from deepwiki_client import LANGUAGE as DEFAULT_LANG
 from deepwiki_client import LLM_MODEL as DEFAULT_MODEL
@@ -12,6 +16,8 @@ from deepwiki_client import DeepWikiClient
 # Logging config
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
+DEFAULT_GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", None)
 
 # Page config
 st.set_page_config(page_title="DeepWiki Explorer", layout="wide")
@@ -30,7 +36,15 @@ col3, col4 = st.sidebar.columns(2)
 provider = col3.selectbox("Provider", [DEFAULT_PROV, "google", "openrouter", "ollama"], index=0)
 model = col4.text_input("Model", value=DEFAULT_MODEL)
 
-github_token = st.sidebar.text_input("GitHub Token", type="password")
+is_private = st.sidebar.checkbox("Private Repo", value=False)
+github_token_input = st.sidebar.text_input(
+    "GitHub Token",
+    type="password",
+    help="Required for private repositories. Create one at https://github.com/settings/tokens?type=beta",
+)
+
+# Determine which token to use
+final_github_token = (github_token_input or DEFAULT_GITHUB_TOKEN) if is_private else None
 
 run = st.sidebar.button("Generate Wiki 📦")
 
@@ -38,10 +52,19 @@ run = st.sidebar.button("Generate Wiki 📦")
 if run:
     if not repo_url:
         st.sidebar.error("Please enter a valid GitHub repository URL.")
+    # Add a check for private repos
+    elif is_private and not final_github_token:
+        st.sidebar.error(
+            "A GitHub Token is required for private repositories. Please provide one in the input field or set GITHUB_TOKEN in your .env file."
+        )
     else:
         client = DeepWikiClient()
         with st.spinner("Generating wiki... 🤖"):
             try:
+                st.info(f"Accessing repo: {repo_url}")
+                if is_private:
+                    st.info("Using GitHub token to access private repository.")
+
                 out_dir = client.export_full_wiki(
                     repo_url=repo_url,
                     fmt=fmt,
@@ -49,10 +72,13 @@ if run:
                     language=language,
                     provider=provider,
                     model=model,
-                    github_token=github_token or None,
+                    token=final_github_token,  # Use the final determined token
                 )
                 st.success("✅ Wiki ready!")
-            except Exception as e:
+            except (ConnectionRefusedError, ConnectionError) as e:
+                st.error(f"Failed to connect to the DeepWiki server: {e}")
+                st.stop()
+            except RuntimeError as e:  # Catch the specific error from your client
                 st.error(f"Failed to generate wiki: {e}")
                 st.stop()
 
@@ -73,7 +99,7 @@ if run:
 
             st.markdown(markdown_content, unsafe_allow_html=True)
             for block in mermaid_blocks:
-                diagram = block.strip().lstrip("```mermaid").rstrip("```").strip()
+                diagram = block.strip().lstrip("```mermaid").rstrip("```").strip()  # noqa: B005
                 html(
                     f"""
                     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
