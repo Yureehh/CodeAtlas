@@ -128,7 +128,7 @@ For questions, issues, or contributions, please open an issue on the [GitHub rep
 A living plan for delivering a multilingual, multi‑provider, deeply navigable documentation and code‑insight platform.
 
 
-## 📚 Documentation & Templating
+### 📚 1.Documentation & Templating
 *Focus: reusable, customizable docs with easy onboarding.*
 
 - **MkDocs site templating** – Production‑ready theme with custom layouts, search and versioning.
@@ -139,7 +139,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 - **Accept external documentation inputs** – Parse `README.md`, Confluence exports, etc., and merge with generated content.
 
 
-## 🌍 Internationalization (i18n)
+### 🌍 2.Internationalization (i18n)
 *Full multi‑language support across UI, docs, and models.*
 
 - **Locale‑aware UI** – `react‑i18next` (Streamlit: `st.session_state.locale`), RTL support, string externalization.
@@ -148,7 +148,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## ☁️ Deployment & Infrastructure
+### ☁️ 3.Deployment & Infrastructure
 *One‑click to cloud, easy self‑hosting.*
 
 - **Streamlit Cloud / HuggingFace Spaces** deploy buttons with sample configs.
@@ -156,7 +156,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 🌐 VCS Integrations
+### 🌐 4.VCS Integrations
 *First‑class GitHub, GitLab & Bitbucket.*
 
 - OAuth / PAT flows (`python‑social‑auth`); env‑var tokens for headless runs.
@@ -166,7 +166,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 🤖 Models & Provider Extensibility
+### 🤖 5.Models & Provider Extensibility
 *Plug‑and‑play engines with fine‑grained control.*
 
 - **Multi‑model support** – OpenAI, Anthropic, local LLMs via Ollama, etc.
@@ -183,7 +183,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 💬 Chat & Prompt Handling
+### 💬 6.Chat & Prompt Handling
 *Interactive, multi‑turn reasoning over the entire repo.*
 
 - Editable chat prompt; maintain conversation + embeddings across turns.
@@ -192,7 +192,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 🔍 Research & Analysis Features
+### 🔍 7.Research & Analysis Features
 *Deep‑dive tooling for code understanding.*
 
 - **Enhanced DeepResearch mode** – Larger context windows, threaded Q&A with history viz.
@@ -200,7 +200,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 📈 Diagrams & Visualizations
+### 📈 8.Diagrams & Visualizations
 *Richer mapping of code & flow.*
 
 - Sequence, class, ER, data‑flow diagrams via Mermaid.
@@ -208,7 +208,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 🧩 UI/UX & Navigation
+### 🧩 9.UI/UX & Navigation
 *Frictionless exploration of large repos.*
 
 - **Folder structure selector** – Explain root vs. submodule; live preview.
@@ -217,7 +217,7 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-## 🏷️ Per‑Code‑Piece Documentation
+### 🏷️ 10.Per‑Code‑Piece Documentation
 *Fine‑grained doc generation for specific snippets.*
 
 - CLI flag / Streamlit widget: “Select function/class → generate standalone MD page” with examples, parameter table, inline diagram.
