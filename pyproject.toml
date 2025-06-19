@@ -14,6 +14,12 @@ dependencies = [
   "commitizen>=4",
   "watchdog>=6.0.0",
   "websockets>=15.0.1",
+  "pdoc>=15.0.4",
+  "openai>=1.88.0",
+  "anthropic>=0.54.0",
+  "google-generativeai>=0.8.5",
+  "streamlit-extras>=0.7.1",
+  "html2text>=2025.4.15",
 ]
 
 [tool.ruff]
@@ -45,6 +51,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "deepwiki-open",
 ]
 
 # Same as Black.
@@ -86,6 +93,7 @@ ignore = [
     "D415",
     "E402",   # false positives for local imports
     "E501",   # line too long
+    "INP001",
     "TRY003", # external messages in exceptions are too verbose
     "TD002",
     "TD003",
@@ -101,6 +109,7 @@ ignore = [
     "RUF001",
     "RUF002",
     "RUF003",
+    "S202"
 ]
 
 
