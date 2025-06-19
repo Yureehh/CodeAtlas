@@ -80,7 +80,7 @@ def main() -> None:
 
     log.info("Starting full-wiki export for %s …", args.repo_url)
     try:
-        result_path = client.export_full_wiki(
+        client.export_full_wiki(
             repo_url=args.repo_url,
             fmt=args.format,
             out_dir=out_dir,
@@ -92,8 +92,6 @@ def main() -> None:
     except Exception:
         log.exception("❌ Export failed. Please check the error message above.")
         sys.exit(1)
-
-    log.info("✅ Done — wiki files written to %s", result_path)
 
 
 if __name__ == "__main__":

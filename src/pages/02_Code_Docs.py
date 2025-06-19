@@ -1,18 +1,16 @@
 """
 Streamlit page: Code Doc Generator
-Paste or upload Python code → choose provider/model/output → receive docs or
-refactored code with docstrings.  Drop this file into `pages/` and restart.
-
-Minor patch ▸ wider Confluence iframe ▸ cleaner Markdown (no giant wrapped links) ▸ proper type-alias so `python-use-type-annotations` passes.
+Paste or upload Python code → choose provider/model → receive comprehensive
+documentation including a Mermaid diagram, refactored code, and Confluence markup.
 """
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import re
 import shutil
-import sys
 import tarfile
 import tempfile
 import zipfile
@@ -21,13 +19,13 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TypeAlias
 
-import html2text  # converts pdoc HTML → Markdown
 import streamlit as st
 from dotenv import load_dotenv
+from streamlit.components.v1 import html
 
 # ────────────────────────── typing helpers ─────────────────────────────
 CodeInput: TypeAlias = str | bytes  # static type alias, satisfies hooks
-SECONDS_PER_HOUR = 3600  # for temp dir cleanup
+SECONDS_PER_HOUR: int = 3600  # used for temp dir cleanup
 
 # ────────────────────────── logging/env ────────────────────────────────
 load_dotenv(override=True)
@@ -35,15 +33,26 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 # ──────────────────────────── UI ───────────────────────────────────────
+st.set_page_config(layout="wide")
 st.header("📄 Code Doc Generator")
 
-tab_code, tab_upload = st.tabs(["Paste code", "Upload file(s)"])
+st.info(
+    "**How it works:** This app sends will refactor the code to add type hints and Google-style docstrings, "
+    "and it will generate a Mermaid diagram to visualize the code structure."
+)
+st.markdown("<br>", unsafe_allow_html=True)
 
+col_p, col_m = st.columns(2)
+provider = col_p.selectbox("Provider", ["openai", "anthropic", "google"], index=0)
+model = col_m.text_input("Model", value=os.getenv("DEFAULT_MODEL", "gpt-4o"))
+
+tab_code, tab_upload = st.tabs(["Paste code", "Upload file(s)"])
 with tab_code:
     code_text: CodeInput = st.text_area(
         "Paste Python code here",
         height=300,
         placeholder="def foo(x: int) -> int:\n    return x * 2",
+        label_visibility="collapsed",
     )
 
 with tab_upload:
@@ -51,12 +60,8 @@ with tab_upload:
         "Upload one .py file or a ZIP / TAR of a package",
         type=["py", "zip", "tar", "gz", "bz2"],
         accept_multiple_files=False,
+        label_visibility="collapsed",
     )
-
-col_p, col_m, col_f = st.columns(3)
-provider = col_p.selectbox("Provider", ["openai", "anthropic", "google"], index=0)
-model = col_m.text_input("Model", value=os.getenv("DEFAULT_MODEL", "gpt-4o"))
-out_format = col_f.selectbox("Output format", ["markdown", "confluence", "docstrings"], index=0)
 
 run_btn = st.button("Generate Documentation 🚀", type="primary")
 st.divider()
@@ -67,7 +72,6 @@ TMP_BASE.mkdir(exist_ok=True)
 
 
 def _write_to_temp(source: CodeInput, name_hint: str = "snippet.py") -> Path:
-    """Persist uploaded or pasted code and return its path inside a temp dir."""
     workdir = Path(tempfile.mkdtemp(dir=TMP_BASE))
     target = workdir / name_hint
     if isinstance(source, bytes):
@@ -86,77 +90,105 @@ def _extract_archive(bytes_data: bytes, workdir: Path) -> None:
             zf.extractall(workdir)
 
 
-def _run_pdoc(module_path: Path, *, mermaid: bool = True) -> str:
-    """Return pdoc-generated **HTML** string for *module_path*."""
-    import pdoc
-    from pdoc import render
+def _parse_llm_output(llm_response: str) -> tuple[str | None, str]:
+    mermaid_content, code_content = None, llm_response
+    mermaid_pattern = r"```mermaid(.*?)```"
+    mermaid_match = re.search(mermaid_pattern, llm_response, re.DOTALL)
+    if mermaid_match:
+        mermaid_content = mermaid_match.group(1).strip()
+        code_content = llm_response.replace(mermaid_match.group(0), "").strip()
+    python_pattern = r"```python(.*?)```"
+    python_match = re.search(python_pattern, code_content, re.DOTALL)
+    code_content = python_match.group(1).strip() if python_match else code_content.strip()
+    return mermaid_content, code_content
 
-    render.configure(mermaid=mermaid, show_source=False, search=False, math=False)
-    sys.path.insert(0, str(module_path.parent))
-    return pdoc.pdoc(str(module_path))
 
+def _create_styled_copy_button(text_to_copy: str) -> None:
+    """Creates a styled button that copies the given text to the clipboard."""
+    text_b64 = base64.b64encode(text_to_copy.encode()).decode()
+    button_uuid = f"copy-btn-{hash(text_to_copy)}"
 
-def _html_to_md(html_doc: str) -> str:
-    """Convert pdoc HTML → Markdown with sensible defaults (no wrap, trimmed ToC)."""
-    conv = html2text.HTML2Text()
-    conv.body_width = 0  # keep original line lengths
-    md = conv.handle(html_doc)
-    return re.sub(r"^\s*\[\].*Table of Contents.*?(?:\n\n|$)", "", md, flags=re.MULTILINE | re.DOTALL)
+    button_html = f"""
+    <style>
+        #{button_uuid} {{
+            background-color: #0068c9;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 0; /* Align button to the top of the column */
+            cursor: pointer;
+            border-radius: 8px;
+            transition-duration: 0.2s;
+            width: 100%;
+            min-width: 180px;
+        }}
+        #{button_uuid}:hover {{
+            background-color: #005aa3;
+        }}
+        #{button_uuid}:active {{
+            background-color: #004c8b;
+        }}
+        #{button_uuid}.copied {{
+            background-color: #4CAF50; /* Green */
+        }}
+    </style>
+    <!-- REQ 2 (FIX): Changed button text -->
+    <button id="{button_uuid}" onclick="copyToClipboard(this)">Confluence Copy</button>
+    <script>
+    async function copyToClipboard(element) {{
+        const text = atob('{text_b64}');
+        await navigator.clipboard.writeText(text);
+        element.innerText = 'Copied!';
+        element.classList.add('copied');
+        element.disabled = true;
+        setTimeout(() => {{
+            element.innerText = 'Confluence Copy';
+            element.classList.remove('copied');
+            element.disabled = false;
+        }}, 2000);
+    }}
+    </script>
+    """
+    html(button_html)
 
 
 def _call_llm(prompt: str) -> str:
-    """Thin provider shim – supports OpenAI, Anthropic, Gemini."""
     if provider == "openai":
         import openai
 
         client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        return (
-            client.chat.completions.create(model=model, messages=[{"role": "user", "content": prompt}])
-            .choices[0]
-            .message.content
-        )
+        response = client.chat.completions.create(model=model, messages=[{"role": "user", "content": prompt}])
+        return response.choices[0].message.content
     if provider == "anthropic":
         import anthropic
 
         client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        return (
-            client.messages.create(model=model, max_tokens=4096, messages=[{"role": "user", "content": prompt}])
-            .content[0]
-            .text
-        )
+        response = client.messages.create(model=model, max_tokens=4096, messages=[{"role": "user", "content": prompt}])
+        return response.content[0].text
     if provider == "google":
         import google.generativeai as genai
 
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        return genai.GenerativeModel(model).generate_content(prompt).text
+        model_instance = genai.GenerativeModel(model)
+        return model_instance.generate_content(prompt).text
     msg = f"Unknown provider: {provider}"
     raise ValueError(msg)
 
 
-def _render_mermaid_blocks(md: str) -> None:
-    """Preview Mermaid diagrams & render remaining Markdown."""
-    from streamlit.components.v1 import html as st_html
-
-    mermaid_blocks = re.findall(r"```mermaid(.*?)```", md, re.DOTALL)
-    st.markdown(re.sub(r"```mermaid.*?```", "", md, flags=re.DOTALL))
-    for block in mermaid_blocks:
-        st_html(
-            f"""
-            <script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>
-            <div class='mermaid'>{block.strip()}</div>
-            <script>mermaid.initialize({{startOnLoad:true}});</script>
-            """,
-            height=300,
-            scrolling=False,
-        )
-
-
 def _docstring_prompt(code: str) -> str:
     return (
-        "You are a senior Python engineer. Rewrite the following code **unchanged** except for:\n"
-        "• add Google-style docstrings to every public function/class/method\n"
-        "• add type hints where missing\n"
-        "• DO NOT modify logic\n\n"
+        "You are a senior Python engineer. Your task is to document the provided Python code.\n"
+        "1.  First, create a concise `mermaid` class diagram illustrating the key classes, functions, and their relationships. Enclose it in ```mermaid fences.\n"
+        "2.  Then, rewrite the original Python code. The logic must remain **unchanged**.\n"
+        "3.  Add Google-style docstrings to every public function, class, and method.\n"
+        "4.  Add or complete type hints where they are missing.\n"
+        "5.  Enclose the final Python code in ```python fences.\n\n"
+        "Here is the code:\n"
         f"```python\n{code}\n```"
     )
 
@@ -164,7 +196,6 @@ def _docstring_prompt(code: str) -> str:
 # ───────────────────── main action ─────────────────────────────────────
 if run_btn:
     try:
-        # mutual-exclusion checks
         if up_files and code_text.strip():
             st.error("Please either paste code or upload file(s) – not both.")
             st.stop()
@@ -172,34 +203,63 @@ if run_btn:
             st.error("Please provide some code.")
             st.stop()
 
-        with st.spinner("Processing …"):
-            # 1 • materialise upload/paste into temp
+        with st.spinner("Calling LLM to generate documentation..."):
             if up_files:
                 data = up_files.getvalue()
                 if up_files.name.endswith((".zip", ".tar", ".gz", ".bz2")):
                     work = Path(tempfile.mkdtemp(dir=TMP_BASE))
                     _extract_archive(data, work)
-                    py_files = [p for p in work.rglob("*.py") if p.name != "__init__.py"]
-                    module_path = py_files[0] if len(py_files) == 1 else work
+                    all_code = [
+                        f"# --- File: {py_file.name} ---\n\n{py_file.read_text()}"
+                        for py_file in sorted(work.rglob("*.py"))
+                    ]
+                    source_code = "\n\n".join(all_code)
                 else:
-                    module_path = _write_to_temp(data, up_files.name)
+                    source_code = data.decode("utf-8")
             else:
-                module_path = _write_to_temp(code_text)
+                source_code = str(code_text)
 
-            # 2 • branch by output format
-            if out_format == "docstrings":
-                rewritten = _call_llm(_docstring_prompt(Path(module_path).read_text()))
-                st.code(rewritten, language="python")
-            elif out_format == "markdown":
-                md_doc = _html_to_md(_run_pdoc(module_path, mermaid=True))
-                _render_mermaid_blocks(md_doc)
-            else:  # confluence
-                html_doc = _run_pdoc(module_path, mermaid=True)
-                st.components.v1.html(html_doc, height=800, width=1200, scrolling=True)
-                st.text_area("Copy for Confluence", f"{{panel}}\n{html_doc}\n{{panel}}", height=150)
-        st.success("Done! 🚀")
+            llm_response = _call_llm(_docstring_prompt(source_code))
+            mermaid_diagram, python_code = _parse_llm_output(llm_response)
+
+        if mermaid_diagram:
+            st.subheader("Mermaid Diagram")
+            # REQ 1 (FIX): Changed column ratio to give more space to the rendered diagram.
+            col_render, col_text = st.columns([3, 2])
+            with col_render:
+                mermaid_html = f"""
+                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+                <div class="mermaid" style="text-align: center;">
+                    {mermaid_diagram}
+                </div>
+                """
+                html(mermaid_html, height=400, scrolling=True)
+            with col_text:
+                # REQ 1 (FIX): Re-add "Diagram Source" header.
+                st.markdown("#### Diagram Source")
+                st.code(mermaid_diagram, language="mermaid")
+
+        st.subheader("Documented Code")
+        st.code(python_code, language="python")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.subheader("Confluence Wiki Markup")
+        col_btn, col_desc = st.columns([1, 3])
+        with col_btn:
+            confluence_markup = []
+            if mermaid_diagram:
+                confluence_markup.append("{mermaid}\n" + mermaid_diagram + "\n{mermaid}")
+            confluence_markup.append(
+                "{code:language=python|theme=default|linenumbers=true|title=Python Code}\n" + python_code + "\n{code}"
+            )
+            _create_styled_copy_button("\n\n".join(confluence_markup))
+        with col_desc:
+            st.info(
+                "Click the 'Confluence Copy' button to copy the complete markup for direct pasting into the Confluence editor."
+            )
 
     except (FileNotFoundError, ValueError, ImportError) as exc:
+        st.error(f"An error occurred: {exc}")
         st.exception(exc)
     finally:
         now = Path().expanduser().stat().st_mtime

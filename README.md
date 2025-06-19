@@ -128,18 +128,18 @@ For questions, issues, or contributions, please open an issue on the [GitHub rep
 A living plan for delivering a multilingual, multi‑provider, deeply navigable documentation and code‑insight platform.
 
 
-### 📚 1.Documentation & Templating
+### 📚 1.Documentation & Templating
 *Focus: reusable, customizable docs with easy onboarding.*
 
 - **MkDocs site templating** – Production‑ready theme with custom layouts, search and versioning.
 - **Multiple wiki support** – Switch between generated wikis (v1, v2, team/public).
   - Descriptive filenames (e.g. `architecture_wiki.md`).
   - Changing the prompt regenerates only the selected wiki.
-- **Detail‑level toggle (comprehensive ↔ concise)** – Built‑in prompt profiles `wiki_detailed.j2` & `wiki_summary.j2`; expose a slider to trim examples / keep only TOC.
+- **Detail‑level toggle (comprehensive ↔ concise)** – Built‑in prompt profiles `wiki_detailed.j2` & `wiki_summary.j2`; expose a slider to trim examples / keep only TOC.
 - **Accept external documentation inputs** – Parse `README.md`, Confluence exports, etc., and merge with generated content.
 
 
-### 🌍 2.Internationalization (i18n)
+### 🌍 2.Internationalization (i18n)
 *Full multi‑language support across UI, docs, and models.*
 
 - **Locale‑aware UI** – `react‑i18next` (Streamlit: `st.session_state.locale`), RTL support, string externalization.
@@ -148,25 +148,25 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 
 
 
-### ☁️ 3.Deployment & Infrastructure
+### ☁️ 3.Deployment & Infrastructure
 *One‑click to cloud, easy self‑hosting.*
 
 - **Streamlit Cloud / HuggingFace Spaces** deploy buttons with sample configs.
-- **Docker & Kubernetes manifests** (optional) – Containerize backend + frontend.
+- **Docker & Kubernetes manifests** (optional) – Containerize backend + frontend.
 
 
 
-### 🌐 4.VCS Integrations
-*First‑class GitHub, GitLab & Bitbucket.*
+### 🌐 4.VCS Integrations
+*First‑class GitHub, GitLab & Bitbucket.*
 
-- OAuth / PAT flows (`python‑social‑auth`); env‑var tokens for headless runs.
-- **Repo import wizard** – `GET /archive/{repo}.zip` (GH/GL) or Bitbucket v2 API.
+- OAuth / PAT flows (`python‑social‑auth`); env‑var tokens for headless runs.
+- **Repo import wizard** – `GET /archive/{repo}.zip` (GH/GL) or Bitbucket v2 API.
 - **Webhook auto‑sync** – On `push`, re‑embed changed files.
-- **Pages‑style deploy badges** – GH Pages, GL Pages, Bitbucket Pipelines.
+- **Pages‑style deploy badges** – GH Pages, GL Pages, Bitbucket Pipelines.
 
 
 
-### 🤖 5.Models & Provider Extensibility
+### 🤖 5.Models & Provider Extensibility
 *Plug‑and‑play engines with fine‑grained control.*
 
 - **Multi‑model support** – OpenAI, Anthropic, local LLMs via Ollama, etc.
@@ -179,45 +179,36 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
     embed_path: /embeddings
   ```
 - **Provider‑specific tuning** – Rate‑limit, temperature, tokens as CLI/GUI options.
-- **Health‑check & model‑card validator** – Surface mismatches (ctx length, tool use).
+- **Health‑check & model‑card validator** – Surface mismatches (ctx length, tool use).
 
 
 
-### 💬 6.Chat & Prompt Handling
+### 💬 6.Chat & Prompt Handling
 *Interactive, multi‑turn reasoning over the entire repo.*
 
 - Editable chat prompt; maintain conversation + embeddings across turns.
 - **Efficient embedding reuse** – Disk/memory cache to avoid re‑processing.
-- **Prompt templates & profiles** – Save named templates (e.g. “API Explorer”, “Architecture Detective”).
+- **Prompt templates & profiles** – Save named templates (e.g. “API Explorer”, “Architecture Detective”).
 
 
-
-### 🔍 7.Research & Analysis Features
-*Deep‑dive tooling for code understanding.*
-
-- **Enhanced DeepResearch mode** – Larger context windows, threaded Q&A with history viz.
-- **Advanced AST analysis** – Type inference, call graphs, annotated snippets.
-
-
-
-### 📈 8.Diagrams & Visualizations
-*Richer mapping of code & flow.*
+### 📈 8.Diagrams & Visualizations
+*Richer mapping of code & flow.*
 
 - Sequence, class, ER, data‑flow diagrams via Mermaid.
 - **Custom diagram styling** – Colors, layout, Mermaid config injection.
 
 
 
-### 🧩 9.UI/UX & Navigation
+### 🧩 9.UI/UX & Navigation
 *Frictionless exploration of large repos.*
 
-- **Folder structure selector** – Explain root vs. submodule; live preview.
-- **Path filters & repo scoping** – Glob/regex include/exclude (`--include "src/**/*.py" --exclude "tests/**"`); GUI tree checkboxes; persist in `.aiassist.yaml`.
-- Wiki navigation: breadcrumbs, search filters, “jump to function”, sidebar customisation.
+- **Folder structure selector** – Explain root vs. submodule; live preview.
+- **Path filters & repo scoping** – Glob/regex include/exclude (`--include "src/**/*.py" --exclude "tests/**"`); GUI tree checkboxes; persist in `.aiassist.yaml`.
+- Wiki navigation: breadcrumbs, search filters, “jump to function”, sidebar customisation.
 
 
 
-### 🏷️ 10.Per‑Code‑Piece Documentation
+### 🏷️ 10.Per‑Code‑Piece Documentation
 *Fine‑grained doc generation for specific snippets.*
 
 - CLI flag / Streamlit widget: “Select function/class → generate standalone MD page” with examples, parameter table, inline diagram.

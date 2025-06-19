@@ -262,6 +262,7 @@ version = "0.1.2"
 source = { virtual = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "beautifulsoup4" },
     { name = "commitizen" },
     { name = "google-generativeai" },
     { name = "html2text" },
@@ -279,6 +280,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.54.0" },
+    { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "commitizen", specifier = ">=4" },
     { name = "google-generativeai", specifier = ">=0.8.5" },
     { name = "html2text", specifier = ">=2025.4.15" },
