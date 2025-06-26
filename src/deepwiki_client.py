@@ -1,9 +1,10 @@
 # src/deepwiki_client.py
 """
-Ultra-thin client that fully mimics the DeepWiki-Open frontend:
+Ultra-thin DeepWiki client:
   • Streams doc tokens over WebSocket
-  • Saves the assembled markdown to /api/wiki_cache
-  • Then calls /export/wiki to download ZIP or MD/HTML
+  • Saves assembled markdown to /api/wiki_cache
+  • Calls /export/wiki to download ZIP or MD/HTML
+Supports GitHub, GitLab.com and Bitbucket.org repositories.
 """
 
 from __future__ import annotations
@@ -13,11 +14,12 @@ import json
 import logging
 import re
 import sys
+import urllib.parse
 import uuid
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import requests
 import websockets
@@ -31,6 +33,13 @@ LLM_MODEL: Final[str] = "gpt-4o"
 REQ_TO: Final[int] = 30
 HTTP_OK: Final[int] = 200
 
+GIT_HOST_RE = re.compile(
+    r"""https?://
+        (?P<host>github\.com|gitlab\.com|bitbucket\.org)
+        /(?P<owner>[^/]+)/(?P<repo>[^/]+)""",
+    re.VERBOSE,
+)
+
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -39,12 +48,14 @@ class DeepWikiClient:
     def __init__(self, base: str = BASE_URL, ws_url: str = WS_URL) -> None:
         self.base = base.rstrip("/")
         self.ws_url = ws_url
-        log.info("DeepWikiClient → http: %s, ws: %s", self.base, self.ws_url)
+        log.info("DeepWikiClient → http: %s  ws: %s", self.base, self.ws_url)
 
+    # ────────────────────────── public API ──────────────────────────────
     def export_full_wiki(self, *args, **kwargs) -> Path:
         """Sync wrapper around the async flow (20 min timeout)."""
         try:
-            return asyncio.run(asyncio.wait_for(self.export_full_wiki_async(*args, **kwargs), timeout=20 * 60))
+            coro = self.export_full_wiki_async(*args, **kwargs)
+            return asyncio.run(asyncio.wait_for(coro, timeout=20 * 60))
         except (ConnectionRefusedError, ConnectionError):
             log.exception("Could not connect to %s – is DeepWiki running?", self.base)
             sys.exit(1)
@@ -62,29 +73,30 @@ class DeepWikiClient:
         model: str = LLM_MODEL,
         token: str | None = None,
     ) -> Path:
-        # ─── 1) prepare output folder ────────────────────────────────────
+        # 1 ) prepare output folder
         dest = (Path(out_dir) if out_dir else Path("data") / Path(repo_url).stem).expanduser().absolute()
         dest.mkdir(parents=True, exist_ok=True)
 
         file_paths = await asyncio.to_thread(self._get_repo_files, repo_url, token)
 
-        # ─── 3) generate via WebSocket → capture full markdown stream ───
+        # 2 ) generate via WebSocket → capture full markdown stream
         scaffold = self._build_payload_scaffold(repo_url, language, provider, model, file_paths, token)
         content = await self._run_and_capture_stream(scaffold["ws_payload"])
         if not content:
             msg = "No content streamed from DeepWiki server."
             raise RuntimeError(msg)
 
-        # ─── 4) stitch into cache payload & POST to /api/wiki_cache ────
+        # 3 ) stitch into cache payload & POST to /api/wiki_cache
         main_id = scaffold["wiki_structure"]["pages"][0]["id"]
         scaffold["wiki_structure"]["pages"][0]["content"] = content
         scaffold["generated_pages"][main_id] = scaffold["wiki_structure"]["pages"][0]
         await asyncio.to_thread(self._save_wiki_to_cache, scaffold)
 
-        # ─── 5) download final wiki (zip or MD/HTML) ────────────────────
+        # 4 ) download final wiki
         await asyncio.to_thread(self._download_and_write, repo_url, fmt, dest)
         return dest
 
+    # ────────────────────────── helpers ─────────────────────────────────
     def _build_payload_scaffold(
         self,
         repo_url: str,
@@ -94,18 +106,11 @@ class DeepWikiClient:
         file_paths: list[str],
         token: str | None,
     ) -> dict[str, Any]:
-        log.info("Building request payload scaffold…")
+        log.info("Building request payload scaffold …")
 
-        # --- START: MODIFIED LOGIC ---
-        # If a token is provided, inject it into the repo_url for cloning.
-        # This is for the server-side payload only, to allow `git clone`.
-        payload_repo_url = repo_url
-        if token:
-            # Transforms https://github.com/owner/repo
-            # into      https://<token>@github.com/owner/repo
-            payload_repo_url = repo_url.replace("https://", f"https://{token}@")
-            log.info("Injecting token into repo_url for server-side cloning.")
-        # --- END: MODIFIED LOGIC ---
+        # If a token is provided, inject it into the clone URL (works for GitHub PAT,
+        # GitLab PAT, and Bitbucket app-password):
+        payload_repo_url = repo_url.replace("https://", f"https://{token}@") if token else repo_url
 
         prompt = (
             "Generate a full codebase wiki for the following file list:\n\n"
@@ -113,7 +118,6 @@ class DeepWikiClient:
             + "\n\nInclude Mermaid diagrams of component interactions."
         )
         ws_payload = {
-            # Use the potentially modified URL here
             "repo_url": payload_repo_url,
             "model": model,
             "provider": provider,
@@ -130,7 +134,7 @@ class DeepWikiClient:
             "relatedPages": [],
         }
         return {
-            "repo": self._parse_repo_info_from_url(repo_url),  # Use original URL here
+            "repo": self._parse_repo_info_from_url(repo_url),
             "language": lang,
             "provider": provider,
             "model": model,
@@ -151,33 +155,25 @@ class DeepWikiClient:
         try:
             async with websockets.connect(self.ws_url, open_timeout=20, close_timeout=60, ping_interval=20) as ws:
                 await ws.send(json.dumps(ws_payload))
-                log.info("✔ WS payload sent—capturing stream…")
                 while True:
                     tok = await ws.recv()
                     tokens.append(str(tok))
         except websockets.exceptions.ConnectionClosedOK:
             assembled = "".join(tokens)
-            log.info("✔ WS closed—%d chars received", len(assembled))
+            log.info("✔ WS closed — %d chars received", len(assembled))
             return assembled
-        except Exception as e:
-            raise RuntimeError("WS error: " + str(e)) from e
+        except Exception as e:  # pragma: no cover
+            msg = f"WS error: {e!s}"
+            raise RuntimeError(msg) from e
 
     def _save_wiki_to_cache(self, scaffold: dict[str, Any]) -> None:
-        log.info("Saving wiki to server cache…")
         payload = {k: v for k, v in scaffold.items() if k != "ws_payload"}
         r = requests.post(f"{self.base}/api/wiki_cache", json=payload, timeout=REQ_TO)
         _ensure_ok(r, "save wiki cache")
-        log.info("✔ Saved wiki cache")
 
     def _download_and_write(self, repo_url: str, fmt: str, dest: Path) -> None:
-        log.info("Downloading final wiki…")
         info = self._parse_repo_info_from_url(repo_url)
-        params = {
-            "owner": info["owner"],
-            "repo": info["repo"],
-            "repo_type": info["repo_type"],
-            "language": LANGUAGE,
-        }
+        params = {"owner": info["owner"], "repo": info["repo"], "repo_type": info["repo_type"], "language": LANGUAGE}
         cache = requests.get(f"{self.base}/api/wiki_cache", params=params, timeout=REQ_TO)
         _ensure_ok(cache, "get cache")
         pages = cache.json().get("wiki_structure", {}).get("pages", [])
@@ -190,68 +186,103 @@ class DeepWikiClient:
         if "zip" in ctype or "octet-stream" in ctype:
             with zipfile.ZipFile(BytesIO(r.content)) as zf:
                 zf.extractall(dest)
-                log.info("📦 Extracted %d files → %s", len(zf.infolist()), dest)
         else:
             ext = ".md" if fmt == "markdown" else ".html"
-            out = dest / f"wiki{ext}"
-            out.write_bytes(r.content)
-            log.info("📝 Saved → %s", out)
+            (dest / f"wiki{ext}").write_bytes(r.content)
 
+    # ──────────────── multi-provider blob listing ───────────────────────
     def _get_repo_files(self, repo_url: str, token: str | None) -> list[str]:
-        """
-        Hit GitHub’s REST API to list every blob in the default branch,
-        using the passed-in token or the one from .env.
-        """
+        """Return a flat list of file paths for GitHub, GitLab or Bitbucket."""
         info = self._parse_repo_info_from_url(repo_url)
+        host: Literal["github", "gitlab", "bitbucket"] = info["repo_type"]
+
+        if host == "github":
+            return self._list_github_blobs(info["owner"], info["repo"], token)
+        if host == "gitlab":
+            return self._list_gitlab_blobs(info["owner"], info["repo"], token)
+        return self._list_bitbucket_blobs(info["owner"], info["repo"], token)
+
+    # ───────────────── GitHub ─────────────────
+    def _list_github_blobs(self, owner: str, repo: str, token: str | None) -> list[str]:
         headers = {"Accept": "application/vnd.github.v3+json"}
         if token:
-            # Fine‐grained PATs (ghp_… or github_pat_…) require Bearer; classic tokens/token apps still work with `token`
             scheme = "Bearer" if token.startswith(("ghp_", "github_pat_")) else "token"
             headers["Authorization"] = f"{scheme} {token}"
 
-        # 1) Repo → default branch
-        r_repo = requests.get(
-            f"https://api.github.com/repos/{info['owner']}/{info['repo']}", headers=headers, timeout=REQ_TO
-        )
+        # 1 ) repo → default branch
+        r_repo = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers, timeout=REQ_TO)
         _ensure_ok(r_repo, "repo info")
-
         branch = r_repo.json().get("default_branch")
 
-        # 2) Branch → commit tree SHA
+        # 2 ) branch → tree SHA
         r_branch = requests.get(
-            f"https://api.github.com/repos/{info['owner']}/{info['repo']}/branches/{branch}",
-            headers=headers,
-            timeout=REQ_TO,
+            f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}", headers=headers, timeout=REQ_TO
         )
         _ensure_ok(r_branch, "branch info")
+        tree_sha = r_branch.json()["commit"]["commit"]["tree"]["sha"]
 
-        tree_sha = r_branch.json().get("commit", {}).get("commit", {}).get("tree", {}).get("sha")
-
-        # 3) Recursive tree → file list
+        # 3 ) recursive tree
         r_tree = requests.get(
-            f"https://api.github.com/repos/{info['owner']}/{info['repo']}/git/trees/{tree_sha}?recursive=1",
+            f"https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
             headers=headers,
             timeout=REQ_TO,
         )
         _ensure_ok(r_tree, "git tree")
+        return [item["path"] for item in r_tree.json()["tree"] if item["type"] == "blob"]
 
-        return [item["path"] for item in r_tree.json().get("tree", []) if item.get("type") == "blob"]
+    # ───────────────── GitLab ─────────────────
+    def _list_gitlab_blobs(self, owner: str, repo: str, token: str | None) -> list[str]:
+        project = urllib.parse.quote_plus(f"{owner}/{repo}")
+        headers = {"PRIVATE-TOKEN": token} if token else {}
+        r = requests.get(
+            f"https://gitlab.com/api/v4/projects/{project}/repository/tree?per_page=100&recursive=true",
+            headers=headers,
+            timeout=REQ_TO,
+        )
+        _ensure_ok(r, "gitlab tree")
+        return [item["path"] for item in r.json() if item["type"] == "blob"]
 
+    # ──────────────── Bitbucket ───────────────
+    def _list_bitbucket_blobs(self, owner: str, repo: str, token: str | None) -> list[str]:
+        # 1 ) repo → main branch
+        auth_hdr = {"Authorization": f"Bearer {token}"} if token else {}
+        r_repo = requests.get(
+            f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}", headers=auth_hdr, timeout=REQ_TO
+        )
+        _ensure_ok(r_repo, "bitbucket repo")
+        branch = r_repo.json().get("mainbranch", {}).get("name", "master")
+
+        # 2 ) src listing (paginated)
+        next_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/{branch}?pagelen=100&format=meta"
+        paths: list[str] = []
+        while next_url:
+            resp = requests.get(next_url, headers=auth_hdr, timeout=REQ_TO)
+            _ensure_ok(resp, "bitbucket tree page")
+            data = resp.json()
+            paths.extend(v["path"] for v in data.get("values", []) if v["type"] == "commit_file")
+            next_url = data.get("next")
+        return paths
+
+    # ───────────────────────── URL parser ───────────────────────────────
     def _parse_repo_info_from_url(self, url: str) -> dict[str, str]:
-        m = re.match(r"https?://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)", url)
+        m = GIT_HOST_RE.match(url)
         if not m:
-            msg = f"Invalid GitHub URL: {url}"
+            msg = f"Unsupported repository URL: {url}"
             raise ValueError(msg)
+        host_map = {
+            "github.com": "github",
+            "gitlab.com": "gitlab",
+            "bitbucket.org": "bitbucket",
+        }
         return {
             "owner": m.group("owner"),
             "repo": m.group("repo"),
-            "type": "github",
-            "repo_type": "github",
+            "host": m.group("host"),
+            "repo_type": host_map[m.group("host")],
         }
 
 
 def _ensure_ok(resp: requests.Response, step: str) -> None:
-    """Raise if HTTP status is not 200."""
     if resp.status_code != HTTP_OK:
         msg = f"{step}: {resp.status_code} {resp.reason}\n{resp.text[:300]}"
         raise RuntimeError(msg)

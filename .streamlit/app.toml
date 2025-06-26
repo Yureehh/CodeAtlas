@@ -1,0 +1,6 @@
+# .streamlit/app.toml  (used only by Streamlit Cloud)
+[build]
+python_version = "3.12"
+
+[run]
+entrypoint = "streamlit run src/app.py"

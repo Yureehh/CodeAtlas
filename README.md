@@ -2,6 +2,8 @@
 
 **Visual Python codebase explainer & AI-powered documentation toolkit – powered by [DeepWiki-Open](https://github.com/AsyncFuncAI/deepwiki-open)**
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](TODO: fill)
+
 
 
 ## 🔥 Features
@@ -59,6 +61,23 @@ python src/deepwiki_wrapper.py https://github.com/psf/requests markdown en opena
 └── .pre-commit-config.yaml # ✅ Hooks for formatting & commit hygiene
 ```
 
+## Configuration Files
+DeepWiki uses JSON configuration files to manage various aspects of the system:
+
+- **generator.json:** Configuration for text generation models
+  Defines available model providers (Google, OpenAI, OpenRouter, Azure, Ollama)
+  Specifies default and available models for each provider
+  Contains model-specific parameters like temperature and top_p
+
+- **embedder.json:** Configuration for embedding models and text processing
+  Defines embedding models for vector storage
+  Contains retriever configuration for RAG
+  Specifies text splitter settings for document chunking
+
+- **repo.json:** Configuration for repository handling
+  Contains file filters to exclude certain files and directories
+  Defines repository size limits and processing rules
+  By default, these files are located in the api/config/ directory. You can customize their location using the DEEPWIKI_CONFIG_DIR environment variable.
 
 
 ## 📦 Installation Notes
@@ -139,48 +158,34 @@ A living plan for delivering a multilingual, multi‑provider, deeply navigable 
 - **Accept external documentation inputs** – Parse `README.md`, Confluence exports, etc., and merge with generated content.
 
 
-### 🌍 2.Internationalization (i18n)
+### 🌍 2.Internationalization (i18n) ✅
 *Full multi‑language support across UI, docs, and models.*
 
-- **Locale‑aware UI** – `react‑i18next` (Streamlit: `st.session_state.locale`), RTL support, string externalization.
 - **Wiki translation workflow** – Two‑pass generation (original → machine‑translated draft → human edit); suffix files with language code (`architecture_wiki.es.md`).
-- **Multilingual embeddings** – “Multilingual” flag switches to e.g. `text‑embedding‑3‑large` or Jina models.
 
 
 
-### ☁️ 3.Deployment & Infrastructure
+
+### ☁️ 3.Deployment & Infrastructure ✅
 *One‑click to cloud, easy self‑hosting.*
 
 - **Streamlit Cloud / HuggingFace Spaces** deploy buttons with sample configs.
 - **Docker & Kubernetes manifests** (optional) – Containerize backend + frontend.
 
 
-
-### 🌐 4.VCS Integrations
+### 🌐 4.VCS Integrations ✅
 *First‑class GitHub, GitLab & Bitbucket.*
 
-- OAuth / PAT flows (`python‑social‑auth`); env‑var tokens for headless runs.
-- **Repo import wizard** – `GET /archive/{repo}.zip` (GH/GL) or Bitbucket v2 API.
 - **Webhook auto‑sync** – On `push`, re‑embed changed files.
 - **Pages‑style deploy badges** – GH Pages, GL Pages, Bitbucket Pipelines.
-
 
 
 ### 🤖 5.Models & Provider Extensibility
 *Plug‑and‑play engines with fine‑grained control.*
 
 - **Multi‑model support** – OpenAI, Anthropic, local LLMs via Ollama, etc.
-- **Custom endpoint schema**
-  ```yaml
-  my-model:
-    base_url: http://localhost:8000/v1
-    auth: x-api-key {{MY_KEY}}
-    infer_path: /chat/completions
-    embed_path: /embeddings
-  ```
 - **Provider‑specific tuning** – Rate‑limit, temperature, tokens as CLI/GUI options.
 - **Health‑check & model‑card validator** – Surface mismatches (ctx length, tool use).
-
 
 
 ### 💬 6.Chat & Prompt Handling

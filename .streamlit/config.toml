@@ -1,0 +1,15 @@
+# .streamlit/config.toml
+[server]
+headless = true          # mandatory in Docker/Cloud
+port     = 8501          # compose exposes this
+enableXsrfProtection = false
+
+# Pick up the user’s locale (set by the backend gateway or Cloud)
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+
+[theme]
+base           = "dark"   # ← default dark
+primaryColor   = "#13A6F2"
+secondaryBackgroundColor = "#1A1B1E"
