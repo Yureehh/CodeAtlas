@@ -4,8 +4,6 @@ DeepWiki Explorer – locale-aware (EN / IT) and multi-host (GitHub, GitLab, Bit
 Drop this file into `src/app.py` (or equivalent entry-point) and restart Streamlit.
 """
 
-
-
 from __future__ import annotations
 
 import logging
