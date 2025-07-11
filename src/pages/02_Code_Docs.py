@@ -17,14 +17,13 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 from textwrap import dedent
-from typing import TypeAlias
 
 import streamlit as st
 from dotenv import load_dotenv
 from streamlit.components.v1 import html
 
 # ────────────────────────── typing helpers ─────────────────────────────
-CodeInput: TypeAlias = str | bytes  # static type alias, satisfies hooks
+type CodeInput = str | bytes  # static type alias, satisfies hooks
 SECONDS_PER_HOUR: int = 3600  # used for temp dir cleanup
 
 # ────────────────────────── logging/env ────────────────────────────────
